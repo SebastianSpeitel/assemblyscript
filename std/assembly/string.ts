@@ -19,12 +19,20 @@ import { Array } from "./array";
     return changetype<String>(out); // retains
   }
 
-  static fromCharCodes(units: Array<i32>): String {
+  static fromCharCodes<T>(units: ArrayLike<T>): String {
     var length = units.length;
     var out = __new(<usize>length << 1, idof<String>());
-    var ptr = units.dataStart;
-    for (let i = 0; i < length; ++i) {
-      store<u16>(out + (<usize>i << 1), load<i32>(ptr + (<usize>i << 2)));
+
+    if (units instanceof Array) {
+      var ptr = units.dataStart;
+      if (sizeof<T>() === 2) {
+        memory.copy(out, ptr, length << 1);
+        return changetype<String>(out);
+      }
+
+      for (let i = 0; i < length; ++i) {
+        store<u16>(out + (<usize>i << 1), load<i32>(ptr + (<usize>i << 2)));
+      }
     }
     return changetype<String>(out);
   }
