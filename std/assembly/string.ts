@@ -19,13 +19,57 @@ import { Array } from "./array";
     return changetype<String>(out); // retains
   }
 
-  static fromCharCodes(units: Array<i32>): String {
+  static fromCharCodes<T>(units: T): String {
+    if (!isArrayLike(units)) {
+      ERROR("Must be an ArrayLike.")
+      return <string>unreachable();
+    }
+
+    if (!isInteger<valueof<T>>()) {
+      ERROR("Must be an array of integers.");
+      return <string>unreachable();
+    }
+
     var length = units.length;
     var out = __new(<usize>length << 1, idof<String>());
     var ptr = units.dataStart;
-    for (let i = 0; i < length; ++i) {
-      store<u16>(out + (<usize>i << 1), load<i32>(ptr + (<usize>i << 2)));
+    var elementSize = sizeof<valueof<T>>();
+
+    // if elementSize is 2 bytes, we can use memory.copy fast path
+    // otherwise we have to "sliceshift" the array in 2 byte chunks
+
+    // fastpath for u16 and i16 arrays
+    if (elementSize === 2) {
+      memory.copy(out, ptr, length << 1);
+      return changetype<String>(out);
     }
+
+    switch (elementSize) {
+      case 1:
+        for (let i = 0; i < length; ++i) {
+          store<u16>(out + (<usize>i << 1), load<u16>(ptr + (<usize>i)));
+        }
+        break;
+      case 4:
+        for (let i = 0; i < length; ++i) {
+          store<u16>(out + (<usize>i << 1), load<u16>(ptr + (<usize>i << 2)));
+        }
+        break;
+      case 8:
+        for (let i = 0; i < length; ++i) {
+          store<u16>(out + (<usize>i << 1), load<u16>(ptr + (<usize>i << 3)));
+        }
+        break;
+      case 16:
+        for (let i = 0; i < length; ++i) {
+          store<u16>(out + (<usize>i << 1), load<u16>(ptr + (<usize>i << 4)));
+        }
+        break;
+      default:
+        ERROR('unsupported element size')
+        return <string>unreachable();
+    }
+
     return changetype<String>(out);
   }
 
